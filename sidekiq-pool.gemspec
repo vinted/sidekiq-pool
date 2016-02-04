@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ['laurynas.butkus@gmail.com']
 
   spec.summary       = %q{Forks and manages multiple Sidekiq processes}
-  spec.description   = %q{Allows using more CPU cores with Sidekiq on Ruby MRI by forking multiple processes.}
+  spec.description   = %q{Allows Sidekiq using more CPU cores on Ruby MRI by forking multiple processes.}
   spec.homepage      = 'https://github.com/laurynas/sidekiq-pool'
   spec.license       = 'MIT'
 

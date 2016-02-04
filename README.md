@@ -1,6 +1,6 @@
 # Sidekiq::Pool
 
-Allows using more CPU cores with Sidekiq on Ruby MRI by forking multiple processes.
+Allows Sidekiq using more CPU cores on Ruby MRI by forking multiple processes.
 
 ## Installation
 
@@ -35,7 +35,6 @@ Signals `USR1`, `USR2` are forwarded to the children.
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/laurynas/sidekiq-pool.
-
 
 ## License
 
