@@ -28,7 +28,7 @@ Signals `USR1`, `USR2` are forwarded to the children.
     
     $ kill -TTIN masterpid
     
-`TTOU` kills one child
+`TTOU` stops one child
     
     $ kill -TTOU masterpid
     
