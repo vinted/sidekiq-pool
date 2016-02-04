@@ -1,5 +1,7 @@
+require 'sidekiq/pool/cli'
+
 RSpec.describe Sidekiq::Pool::CLI do
-  let(:cli) { described_class.instance }
+  let(:cli) { described_class.new }
 
   describe '#parse' do
     subject { cli.parse(args) }
