@@ -4,6 +4,7 @@ module Sidekiq
   module Pool
     class CLI < Sidekiq::CLI
       def initialize
+        @master_pid = ::Process.pid
         @child_index = 0
         @pool = []
         super
@@ -12,28 +13,12 @@ module Sidekiq
       alias_method :run_child, :run
 
       def run
-        raise ArgumentError, 'Please specify pool size' unless @pool_size
-
-        self_read, self_write = IO.pipe
-
-        %w(INT TERM USR1 USR2 TTIN TTOU CLD).each do |sig|
-          begin
-            trap sig do
-              self_write.puts(sig)
-            end
-          rescue ArgumentError
-            puts "Signal #{sig} not supported"
-          end
-        end
-
         logger.info "Starting pool with #{@pool_size} instances"
+        trap_signals
 
         @pool_size.times { fork_child }
 
-        while readable_io = IO.select([self_read])
-          signal = readable_io.first[0].gets.strip
-          handle_master_signal(signal)
-        end
+        wait_for_signals
       end
 
       private
@@ -111,28 +96,61 @@ module Sidekiq
         opts
       end
 
-      def handle_master_signal(sig)
-        case sig
-        when 'INT', 'TERM'
-          signal_to_pool(sig)
-          wait_and_exit
-        when 'TTIN'
-          logger.info 'Adding child'
-          fork_child
-        when 'TTOU'
-          remove_child
-        when 'CLD'
-          check_pool
-        else
-          signal_to_pool(sig)
+      def validate!
+        raise ArgumentError, 'Please specify pool size using --pool-size N' unless @pool_size
+        super
+      end
+
+      def trap_signals
+        @self_read, @self_write = IO.pipe
+
+        %w(INT TERM USR1 USR2 TTIN TTOU CLD).each do |sig|
+          begin
+            trap sig do
+              @self_write.puts(sig) unless fork?
+            end
+          rescue ArgumentError
+            puts "Signal #{sig} not supported"
+          end
         end
       end
 
       def fork_child
         @pool << fork do
+          @self_write.close
           options[:index] = @child_index++
           run_child
         end
+      end
+
+      def wait_for_signals
+        while readable_io = IO.select([@self_read])
+          signal = readable_io.first[0].gets.strip
+          handle_master_signal(signal)
+        end
+      end
+
+      def handle_master_signal(sig)
+        case sig
+        when 'INT', 'TERM'
+          stop_children
+          logger.info 'Bye!'
+          exit(0)
+        when 'TTIN'
+          add_child
+        when 'TTOU'
+          remove_child
+        when 'CLD'
+          check_pool
+        when 'USR1', 'USR2'
+          logger.info "Sending #{sig} signal to the pool"
+          signal_to_pool(sig)
+        end
+      end
+
+      def add_child
+        logger.info 'Adding child'
+        fork_child
       end
 
       def remove_child
@@ -144,12 +162,17 @@ module Sidekiq
         end
 
         logger.info 'Removing child'
-        ::Process.kill('TERM', @pool.pop)
+        signal_to_child('TERM', @pool.shift)
       end
 
       def signal_to_pool(sig)
-        logger.info "Sending #{sig} signal to the pool"
-        @pool.each { |pid| ::Process.kill(sig, pid) }
+        @pool.each { |pid| signal_to_child(sig, pid) }
+      end
+
+      def signal_to_child(sig, pid)
+        ::Process.kill(sig, pid)
+      rescue Errno::ESRCH
+        @pool.delete(pid)
       end
 
       def check_pool
@@ -162,6 +185,7 @@ module Sidekiq
       def handle_dead_child(pid)
         logger.info "Child #{pid} died"
         @pool.delete(pid)
+        add_child
       end
 
       def alive?(pid)
@@ -171,14 +195,18 @@ module Sidekiq
         false
       end
 
-      def wait_and_exit
-        loop do
-          break if @pool.none? { |pid| alive?(pid) }
-          sleep(0.1)
-        end
+      def stop_children
+        logger.info 'Stopping children'
 
-        logger.info 'Bye!'
-        exit(0)
+        loop do
+          signal_to_pool('TERM')
+          sleep(1)
+          break if @pool.none? { |pid| alive?(pid) }
+        end
+      end
+
+      def fork?
+        ::Process.pid != @master_pid
       end
     end
   end

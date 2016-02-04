@@ -10,8 +10,7 @@ RSpec.describe Sidekiq::Pool::CLI do
       let(:args) { ['sidekiq-pool', '-r', './spec/fake_env.rb'] }
 
       it 'requires pool size' do
-        subject
-        expect { cli.run }.to raise_error(ArgumentError, /Please specify pool size/)
+        expect { subject }.to raise_error(ArgumentError, /Please specify pool size/)
       end
     end
 
