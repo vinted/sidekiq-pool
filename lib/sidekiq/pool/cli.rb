@@ -4,7 +4,6 @@ module Sidekiq
   module Pool
     class CLI < Sidekiq::CLI
       def initialize
-        @master_pid = ::Process.pid
         @child_index = 0
         @pool = []
         super
@@ -14,6 +13,9 @@ module Sidekiq
 
       def run
         logger.info "Starting pool with #{@pool_size} instances"
+
+        @master_pid = $$
+
         trap_signals
 
         @pool_size.times { fork_child }
@@ -104,7 +106,7 @@ module Sidekiq
       def trap_signals
         @self_read, @self_write = IO.pipe
 
-        %w(INT TERM USR1 USR2 TTIN TTOU CLD).each do |sig|
+        %w(INT TERM USR1 USR2 TTIN TTOU CHLD).each do |sig|
           begin
             trap sig do
               @self_write.puts(sig) unless fork?
@@ -140,7 +142,7 @@ module Sidekiq
           add_child
         when 'TTOU'
           remove_child
-        when 'CLD'
+        when 'CHLD'
           check_pool
         when 'USR1', 'USR2'
           logger.info "Sending #{sig} signal to the pool"
@@ -176,6 +178,7 @@ module Sidekiq
       end
 
       def check_pool
+        ::Process.waitpid2(-1, ::Process::WNOHANG)
         @pool.each do |pid|
           next if alive?(pid)
           handle_dead_child(pid)
@@ -201,12 +204,13 @@ module Sidekiq
         loop do
           signal_to_pool('TERM')
           sleep(1)
+          ::Process.waitpid2(-1, ::Process::WNOHANG)
           break if @pool.none? { |pid| alive?(pid) }
         end
       end
 
       def fork?
-        ::Process.pid != @master_pid
+        $$ != @master_pid
       end
     end
   end
