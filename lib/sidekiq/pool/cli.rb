@@ -200,9 +200,15 @@ module Sidekiq
 
       def stop_children
         logger.info 'Stopping children'
-
+        time = Time.now
         loop do
-          signal_to_pool('TERM')
+          wait_time = (Time.now - time).to_i
+          if wait_time > options[:timeout] + 2
+            logger.warn("Children didn't stop in #{wait_time}s, killing")
+            signal_to_pool('KILL')
+          else
+            signal_to_pool('TERM')
+          end
           sleep(1)
           ::Process.waitpid2(-1, ::Process::WNOHANG)
           break if @pool.none? { |pid| alive?(pid) }
