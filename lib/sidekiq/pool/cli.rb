@@ -18,12 +18,17 @@ module Sidekiq
 
         trap_signals
 
-        @pool_size.times { fork_child }
+        @pool_size.times do
+          sleep @fork_wait || DEFAULT_FORK_WAIT
+          fork_child
+        end
 
         wait_for_signals
       end
 
       private
+
+      DEFAULT_FORK_WAIT = 1
 
       def parse_options(argv)
         opts = {}
@@ -64,6 +69,10 @@ module Sidekiq
 
           o.on "-v", "--verbose", "Print more verbose output" do |arg|
             opts[:verbose] = arg
+          end
+
+          o.on '-w', '--fork-wait NUM', "seconds to wait between child forks, default #{DEFAULT_FORK_WAIT}" do |arg|
+            @fork_wait = Integer(arg)
           end
 
           o.on '-C', '--config PATH', "path to YAML config file" do |arg|
