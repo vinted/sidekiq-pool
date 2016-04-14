@@ -157,7 +157,12 @@ module Sidekiq
           remove_child
         when 'CHLD'
           check_pool
-        when 'USR1', 'USR2'
+        when 'USR1'
+          @done = true
+          update_process_name
+          logger.info "Sending #{sig} signal to the pool"
+          signal_to_pool(sig)
+        when 'USR2'
           logger.info "Sending #{sig} signal to the pool"
           signal_to_pool(sig)
         end
