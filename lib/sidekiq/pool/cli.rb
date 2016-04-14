@@ -1,4 +1,5 @@
 require 'sidekiq/cli'
+require 'sidekiq/pool/version'
 
 module Sidekiq
   module Pool
@@ -6,6 +7,7 @@ module Sidekiq
       def initialize
         @child_index = 0
         @pool = []
+        @done = false
         super
       end
 
@@ -17,6 +19,7 @@ module Sidekiq
         @master_pid = $$
 
         trap_signals
+        update_process_name
 
         @pool_size.times do
           sleep @fork_wait || DEFAULT_FORK_WAIT
@@ -129,6 +132,7 @@ module Sidekiq
       def fork_child
         @pool << fork do
           @self_write.close
+          $0 = 'sidekiq starting'
           options[:index] = @child_index++
           run_child
         end
@@ -208,7 +212,10 @@ module Sidekiq
       end
 
       def stop_children
+        @done = true
         logger.info 'Stopping children'
+        update_process_name
+
         time = Time.now
         loop do
           wait_time = (Time.now - time).to_i
@@ -226,6 +233,22 @@ module Sidekiq
 
       def fork?
         $$ != @master_pid
+      end
+
+      def stopping?
+        @done
+      end
+
+      def update_process_name
+        parts = [
+          'sidekiq-pool',
+          Sidekiq::Pool::VERSION,
+          options[:tag]
+        ]
+
+        parts << 'stopping' if stopping?
+
+        $0 = parts.compact.join(' ')
       end
     end
   end
