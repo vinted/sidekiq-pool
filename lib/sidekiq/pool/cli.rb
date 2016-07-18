@@ -14,16 +14,17 @@ module Sidekiq
       alias_method :run_child, :run
 
       def run
-        logger.info "Starting pool with #{@pool_size} instances"
-
+        @settings = YAML.load(ERB.new(File.read(@pool_config)).result)
+        @types = @settings[:workers]
         @master_pid = $$
 
         trap_signals
         update_process_name
-
-        @pool_size.times do
-          sleep @fork_wait || DEFAULT_FORK_WAIT
-          fork_child
+        @types.each do |type|
+          type[:amount].times do
+            sleep @fork_wait || DEFAULT_FORK_WAIT
+            add_child(type[:command])
+          end
         end
 
         wait_for_signals
@@ -37,10 +38,6 @@ module Sidekiq
         opts = {}
 
         @parser = OptionParser.new do |o|
-          o.on '--pool-size INT', "pool size" do |arg|
-            @pool_size = Integer(arg)
-          end
-
           o.on '-c', '--concurrency INT', "processor threads to use" do |arg|
             opts[:concurrency] = Integer(arg)
           end
@@ -90,6 +87,10 @@ module Sidekiq
             opts[:pidfile] = arg
           end
 
+          o.on '-p', '--pool-config PATH', "path to pool config file" do |arg|
+            @pool_config = arg
+          end
+
           o.on '-V', '--version', "Print version and exit" do |arg|
             puts "Sidekiq #{Sidekiq::VERSION}"
             die(0)
@@ -107,18 +108,17 @@ module Sidekiq
           opts[:config_file] ||= filename if File.exist?(filename)
         end
 
-        opts
-      end
+        %w[config/sidekiq-pool.yml config/sidekiq-pool.yml.erb].each do |filename|
+          @pool_config ||= filename if File.exist?(filename)
+        end
 
-      def validate!
-        raise ArgumentError, 'Please specify pool size using --pool-size N' unless @pool_size
-        super
+        opts
       end
 
       def trap_signals
         @self_read, @self_write = IO.pipe
 
-        %w(INT TERM USR1 USR2 TTIN TTOU CHLD).each do |sig|
+        %w(INT TERM USR1 USR2 CHLD).each do |sig|
           begin
             trap sig do
               @self_write.puts(sig) unless fork?
@@ -129,13 +129,15 @@ module Sidekiq
         end
       end
 
-      def fork_child
-        @pool << fork do
+      def fork_child(command)
+        pid = fork do
+          setup_options(command.split)
           @self_write.close
           $0 = 'sidekiq starting'
           options[:index] = @child_index++
           run_child
         end
+        @pool << { pid: pid, command: command }
       end
 
       def wait_for_signals
@@ -151,42 +153,25 @@ module Sidekiq
           stop_children
           logger.info 'Bye!'
           exit(0)
-        when 'TTIN'
-          add_child
-        when 'TTOU'
-          remove_child
         when 'CHLD'
           check_pool
         when 'USR1'
           @done = true
           update_process_name
-          logger.info "Sending #{sig} signal to the pool"
-          signal_to_pool(sig)
-        when 'USR2'
+        when 'USR1', 'USR2'
           logger.info "Sending #{sig} signal to the pool"
           signal_to_pool(sig)
         end
       end
 
-      def add_child
-        logger.info 'Adding child'
-        fork_child
+      def add_child(*arg)
+        logger.info "Adding child with args: #{arg}"
+        fork_child(*arg)
       end
 
-      def remove_child
-        return if @pool.empty?
-
-        if @pool.size == 1
-          logger.info 'Cowardly refusing to kill the last child'
-          return
-        end
-
-        logger.info 'Removing child'
-        signal_to_child('TERM', @pool.shift)
-      end
 
       def signal_to_pool(sig)
-        @pool.each { |pid| signal_to_child(sig, pid) }
+        @pool.each { |child| signal_to_child(sig, child[:pid]) }
       end
 
       def signal_to_child(sig, pid)
@@ -197,16 +182,16 @@ module Sidekiq
 
       def check_pool
         ::Process.waitpid2(-1, ::Process::WNOHANG)
-        @pool.each do |pid|
-          next if alive?(pid)
-          handle_dead_child(pid)
+        @pool.each do |child|
+          next if alive?(child[:pid])
+          handle_dead_child(child)
         end
       end
 
-      def handle_dead_child(pid)
-        logger.info "Child #{pid} died"
-        @pool.delete(pid)
-        add_child
+      def handle_dead_child(child)
+        logger.info "Child #{child[:pid]} died"
+        @pool.delete(child)
+        add_child(child[:command])
       end
 
       def alive?(pid)
@@ -232,7 +217,7 @@ module Sidekiq
           end
           sleep(1)
           ::Process.waitpid2(-1, ::Process::WNOHANG)
-          break if @pool.none? { |pid| alive?(pid) }
+          break if @pool.none? { |child| alive?(child[:pid]) }
         end
       end
 

@@ -1,6 +1,7 @@
 # Sidekiq::Pool
 
 Allows Sidekiq using more CPU cores on Ruby MRI by forking multiple processes.
+Also adds an option to use different command line option workers in the same pool.
 
 ## Installation
 
@@ -10,28 +11,34 @@ Add this line to your application's Gemfile:
 gem 'sidekiq-pool'
 ```
 
+Create a config file and specify it's path with the *p* command line option (the default is config/sidekiq-pool.yml)
+
+Paste the following config and modify it to your needs:
+
+```yaml
+:workers:
+  -
+    :command: '-q default -q high'
+    :amount: 2
+  -
+    :command: '-q high -L high_logfile.txt'
+    :amount: 1
+```
+
 ## Usage
 
 Help
 
     $ bundle exec sidekiq-pool -h
 
-Start pool with 3 instances
+Start pool with a non-default path config
 
-    $ bundle exec sidekiq-pool --pool-size 3 
+    $ bundle exec sidekiq-pool -p config/pool_config.yml
 
 ## Signals
 
 Signals `USR1`, `USR2` are forwarded to the children.
- 
-`TTIN` forks new child 
-    
-    $ kill -TTIN masterpid
-    
-`TTOU` stops one child
-    
-    $ kill -TTOU masterpid
-    
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/laurynas/sidekiq-pool.
