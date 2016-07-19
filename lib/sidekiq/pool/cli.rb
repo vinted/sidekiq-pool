@@ -14,7 +14,7 @@ module Sidekiq
       alias_method :run_child, :run
 
       def run
-        @settings = YAML.load(ERB.new(File.read(@pool_config)).result)
+        @settings = parse_config_file(@pool_config)
         @types = @settings[:workers]
         @master_pid = $$
 
@@ -28,6 +28,20 @@ module Sidekiq
         end
 
         wait_for_signals
+      end
+
+      def parse_config_file(filename)
+        config = YAML.load(ERB.new(File.read(filename)).result)
+        unless config.key?(:workers)
+          raise ArgumentError, 'Invalid configuration file - "workers" key must be present'
+        end
+        unless config[:workers].is_a?(Array)
+          raise ArgumentError, 'Invalid configuration file - "workers" key must be a list'
+        end
+        unless config[:workers].size > 0
+          raise ArgumentError, 'Invalid configuration file - Atleast one worker must be present'
+        end
+        config
       end
 
       private

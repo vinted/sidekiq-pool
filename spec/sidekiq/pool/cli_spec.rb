@@ -2,27 +2,27 @@ require 'sidekiq/pool/cli'
 
 RSpec.describe Sidekiq::Pool::CLI do
   let(:cli) { described_class.new }
+  let(:mock_config) { './spec/sidekiq/pool/fake_config.yml' }
 
-  describe '#parse' do
-    subject { cli.parse(args) }
+  describe '#parse_config_file' do
+    subject { cli.parse_config_file(mock_config) }
 
-    context 'without pool size' do
-      let(:args) { ['sidekiq-pool', '-r', './spec/fake_env.rb'] }
+    context 'without valid config' do
+      let(:config) { ':workers: -' }
 
-      it 'requires pool size' do
-        expect { subject }.to raise_error(ArgumentError, /Please specify pool size/)
+      before do
+        allow(File).to receive(:read).and_return(config)
+      end
+      it 'raises an exception' do
+        expect { subject }.to raise_error
       end
     end
 
-    context 'with pool size' do
-      before do
-        cli.parse(['sidekiq-pool', '--pool-size', pool_size.to_s, '-r', './spec/fake_env.rb'])
-      end
+    context 'with valid config' do
+      let(:result) { { workers: [{ command: "-q default -q high", amount: 2}] } }
 
-      let(:pool_size) { 3 }
-
-      it 'sets pool size' do
-        expect(cli.instance_variable_get(:@pool_size)).to eq pool_size
+      it 'returns the parsed config' do
+        expect(subject).to eq result
       end
     end
   end

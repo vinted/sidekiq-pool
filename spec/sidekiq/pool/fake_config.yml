@@ -1,0 +1,4 @@
+:workers:
+  -
+    :command: '-q default -q high'
+    :amount: 2
