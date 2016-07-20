@@ -145,7 +145,9 @@ module Sidekiq
 
       def fork_child(command)
         pid = fork do
-          setup_options(command.split)
+          opts = parse_options(command.split)
+          options.merge!(opts)
+
           @self_write.close
           $0 = 'sidekiq starting'
           options[:index] = @child_index++
