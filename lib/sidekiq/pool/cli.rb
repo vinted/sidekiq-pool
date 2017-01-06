@@ -174,7 +174,8 @@ module Sidekiq
         when 'USR1'
           @done = true
           update_process_name
-        when 'USR1', 'USR2'
+          signal_to_pool(sig)
+        when 'USR2'
           logger.info "Sending #{sig} signal to the pool"
           signal_to_pool(sig)
         end
