@@ -39,6 +39,8 @@ Start pool with a non-default path config
 
 Signals `USR1`, `USR2` are forwarded to the children.
 
+Signal `HUP` to parent starts new children and then stops old.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/laurynas/sidekiq-pool.
