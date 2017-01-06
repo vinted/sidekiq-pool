@@ -14,18 +14,11 @@ module Sidekiq
       alias_method :run_child, :run
 
       def run
-        @settings = parse_config_file(@pool_config)
-        @types = @settings[:workers]
         @master_pid = $$
 
         trap_signals
         update_process_name
-        @types.each do |type|
-          type[:amount].times do
-            sleep @fork_wait || DEFAULT_FORK_WAIT
-            add_child(type[:command])
-          end
-        end
+        start_new_pool
 
         wait_for_signals
       end
@@ -47,6 +40,18 @@ module Sidekiq
       private
 
       DEFAULT_FORK_WAIT = 1
+
+      def start_new_pool
+        logger.info 'Starting new pool'
+        @settings = parse_config_file(@pool_config)
+        @types = @settings[:workers]
+        @types.each do |type|
+          type[:amount].times do
+            sleep @fork_wait || DEFAULT_FORK_WAIT
+            add_child(type[:command])
+          end
+        end
+      end
 
       def parse_options(argv)
         opts = {}
@@ -132,7 +137,7 @@ module Sidekiq
       def trap_signals
         @self_read, @self_write = IO.pipe
 
-        %w(INT TERM USR1 USR2 CHLD).each do |sig|
+        %w(INT TERM USR1 USR2 CHLD HUP).each do |sig|
           begin
             trap sig do
               @self_write.puts(sig) unless fork?
@@ -178,6 +183,23 @@ module Sidekiq
         when 'USR2'
           logger.info "Sending #{sig} signal to the pool"
           signal_to_pool(sig)
+        when 'HUP'
+          logger.info 'Gracefully reloading pool'
+          old_pool = @pool.dup
+
+          # Signal old pool
+          # USR1 tells Sidekiq it will be shutting down in near future.
+          signal_to_pool('USR1')
+
+          # Reset pool
+          @pool = []
+
+          # Start new pool
+          start_new_pool
+
+          # Stop old pool
+          stop_children(old_pool)
+          logger.info 'Graceful reload completed'
         end
       end
 
@@ -186,9 +208,8 @@ module Sidekiq
         fork_child(*arg)
       end
 
-
-      def signal_to_pool(sig)
-        @pool.each { |child| signal_to_child(sig, child[:pid]) }
+      def signal_to_pool(sig, given_pool = @pool)
+        given_pool.each { |child| signal_to_child(sig, child[:pid]) }
       end
 
       def signal_to_child(sig, pid)
@@ -218,7 +239,7 @@ module Sidekiq
         false
       end
 
-      def stop_children
+      def stop_children(given_pool = @pool)
         @done = true
         logger.info 'Stopping children'
         update_process_name
@@ -228,13 +249,13 @@ module Sidekiq
           wait_time = (Time.now - time).to_i
           if wait_time > options[:timeout] + 2
             logger.warn("Children didn't stop in #{wait_time}s, killing")
-            signal_to_pool('KILL')
+            signal_to_pool('KILL', given_pool)
           else
-            signal_to_pool('TERM')
+            signal_to_pool('TERM', given_pool)
           end
           sleep(1)
           ::Process.waitpid2(-1, ::Process::WNOHANG)
-          break if @pool.none? { |child| alive?(child[:pid]) }
+          break if given_pool.none? { |child| alive?(child[:pid]) }
         end
       end
 
