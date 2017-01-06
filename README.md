@@ -16,6 +16,7 @@ Create a config file and specify it's path with the *p* command line option (the
 Paste the following config and modify it to your needs:
 
 ```yaml
+:working_directory: /path/to/working/direcory # optional, needed if HUP reload is used with symlink
 :workers:
   -
     :command: '-q default -q high'
@@ -40,6 +41,9 @@ Start pool with a non-default path config
 Signals `USR1`, `USR2` are forwarded to the children.
 
 Signal `HUP` to parent starts new children and then stops old.
+
+When using symlinked working directory `working_directory` configuration
+option must be used to pick up new code.
 
 ## Contributing
 
