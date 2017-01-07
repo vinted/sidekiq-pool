@@ -44,7 +44,8 @@ module Sidekiq
       def start_new_pool
         logger.info 'Starting new pool'
         @settings = parse_config_file(@pool_config)
-        Dir.chdir(@settings[:working_directory]) if @settings[:working_directory]
+        working_directory = @working_directory || @settings[:working_directory]
+        Dir.chdir(working_directory) if working_directory
         @types = @settings[:workers]
         @types.each do |type|
           type[:amount].times do
@@ -109,6 +110,14 @@ module Sidekiq
 
           o.on '-p', '--pool-config PATH', "path to pool config file" do |arg|
             @pool_config = arg
+          end
+
+          o.on '--working-directory PATH', "path to working directory" do |arg|
+            unless Dir.exist?(arg)
+              puts "Provided directory #{arg} does not exist"
+              die(1)
+            end
+            @working_directory = arg
           end
 
           o.on '-V', '--version', "Print version and exit" do |arg|
