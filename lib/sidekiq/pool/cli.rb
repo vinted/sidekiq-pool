@@ -120,6 +120,10 @@ module Sidekiq
             @working_directory = arg
           end
 
+          o.on '--wait-until-child-loaded NUM', "Seconds to wait until forked child is busy" do |arg|
+            @wait_until_child_loaded = Integer(arg)
+          end
+
           o.on '-V', '--version', "Print version and exit" do |arg|
             puts "Sidekiq #{Sidekiq::VERSION}"
             die(0)
@@ -168,6 +172,15 @@ module Sidekiq
           options[:index] = @child_index++
           run_child
         end
+
+        wait_until_child_loaded ||= (@wait_until_child_loaded || 30)
+
+        until cmdline_busy?(pid)
+          break if (wait_until_child_loaded -= 1).zero?
+          logger.info "Waiting for child #{pid} to be busy break in #{wait_until_child_loaded}"
+          sleep 1
+        end
+
         @pool << { pid: pid, command: command }
       end
 
@@ -247,6 +260,13 @@ module Sidekiq
         true
       rescue Errno::ESRCH
         false
+      end
+
+      def cmdline_busy?(pid)
+        return unless alive?(pid)
+        cmdline = File.read("/proc/#{pid}/cmdline")
+        return if cmdline.empty?
+        !cmdline.scan(/busy\]/).empty?
       end
 
       def stop_children(given_pool = @pool)
