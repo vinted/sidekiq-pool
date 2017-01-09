@@ -49,8 +49,14 @@ module Sidekiq
         @types = @settings[:workers]
         @types.each do |type|
           type[:amount].times do
-            sleep @fork_wait || DEFAULT_FORK_WAIT
-            add_child(type[:command])
+            fork_wait = @fork_wait || DEFAULT_FORK_WAIT
+            times_to_wait_for_alive ||= (fork_wait * 3)
+            pid = add_child(type[:command])
+
+            until alive?(pid)
+              break if (times_to_wait_for_alive -= 1).zero?
+              sleep fork_wait
+            end
           end
         end
       end
@@ -169,6 +175,7 @@ module Sidekiq
           run_child
         end
         @pool << { pid: pid, command: command }
+        pid
       end
 
       def wait_for_signals
