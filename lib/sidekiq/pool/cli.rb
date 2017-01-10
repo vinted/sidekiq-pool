@@ -124,6 +124,10 @@ module Sidekiq
             @wait_until_child_loaded = Integer(arg)
           end
 
+          o.on '--suspend-before-graceful-reload', "Send USR1 singal to old pool when doing graceful reload" do |arg|
+            @suspend_before_graceful_reload = arg
+          end
+
           o.on '-V', '--version', "Print version and exit" do |arg|
             puts "Sidekiq #{Sidekiq::VERSION}"
             die(0)
@@ -212,7 +216,7 @@ module Sidekiq
 
           # Signal old pool
           # USR1 tells Sidekiq it will be shutting down in near future.
-          signal_to_pool('USR1')
+          signal_to_pool('USR1') if @suspend_before_graceful_reload
 
           # Reset pool
           @pool = []
