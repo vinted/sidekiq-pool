@@ -50,7 +50,7 @@ module Sidekiq
         @types.each do |type|
           type[:amount].times do
             sleep @fork_wait || DEFAULT_FORK_WAIT
-            add_child(type[:command])
+            fork_child(type[:command])
           end
         end
       end
@@ -166,7 +166,8 @@ module Sidekiq
         end
       end
 
-      def fork_child(command)
+      def fork_child(command, wait_for_busy = true)
+        logger.info "Adding child with args: (#{command}), waiting for busy: #{wait_for_busy}"
         pid = fork do
           opts = parse_options(command.split)
           options.merge!(opts)
@@ -183,7 +184,7 @@ module Sidekiq
           break if (wait_until_child_loaded -= 1).zero?
           logger.info "Waiting for child #{pid} to be busy break in #{wait_until_child_loaded}"
           sleep 1
-        end
+        end if wait_for_busy
 
         @pool << { pid: pid, command: command }
       end
@@ -230,11 +231,6 @@ module Sidekiq
         end
       end
 
-      def add_child(*arg)
-        logger.info "Adding child with args: #{arg}"
-        fork_child(*arg)
-      end
-
       def signal_to_pool(sig, given_pool = @pool)
         given_pool.each { |child| signal_to_child(sig, child[:pid]) }
       end
@@ -256,7 +252,7 @@ module Sidekiq
       def handle_dead_child(child)
         logger.info "Child #{child[:pid]} died"
         @pool.delete(child)
-        add_child(child[:command])
+        fork_child(child[:command], false)
       end
 
       def alive?(pid)
