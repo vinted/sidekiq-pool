@@ -41,11 +41,13 @@ module Sidekiq
 
       DEFAULT_FORK_WAIT = 1
 
+      def working_directory
+        @working_directory || @settings[:working_directory]
+      end
+
       def start_new_pool
         logger.info 'Starting new pool'
         @settings = parse_config_file(@pool_config)
-        working_directory = @working_directory || @settings[:working_directory]
-        Dir.chdir(working_directory) if working_directory
         @types = @settings[:workers]
         @types.each do |type|
           type[:amount].times do
@@ -167,8 +169,14 @@ module Sidekiq
       end
 
       def fork_child(command, wait_for_busy = true)
-        logger.info "Adding child with args: (#{command}), waiting for busy: #{wait_for_busy}"
+        logger.info "Adding child with args: (#{command}) in #{working_directory}, waiting for busy: #{wait_for_busy}"
+        if working_directory && !Dir.exist?(working_directory)
+          logger.info "Working directory: #{working_directory} does not exist unable to fork"
+          return
+        end
+
         pid = fork do
+          Dir.chdir(working_directory) if working_directory
           opts = parse_options(command.split)
           options.merge!(opts)
 
