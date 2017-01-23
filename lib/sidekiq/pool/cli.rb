@@ -47,6 +47,7 @@ module Sidekiq
 
       def start_new_pool
         logger.info 'Starting new pool'
+        Dir.chdir(working_directory) if working_directory
         @settings = parse_config_file(@pool_config)
         @types = @settings[:workers]
         @types.each do |type|
