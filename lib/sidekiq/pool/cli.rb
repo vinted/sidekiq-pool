@@ -183,7 +183,14 @@ module Sidekiq
 
           @self_write.close
           $0 = 'sidekiq starting'
-          options[:index] = @child_index++
+          @child_index += 1
+          options[:index] = @child_index
+
+          # reset child identity
+          @@process_nonce = nil
+          @@identity = nil
+          options[:identity] = identity
+
           run_child
         end
 
