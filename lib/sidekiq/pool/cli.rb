@@ -4,10 +4,17 @@ require 'sidekiq/pool/version'
 module Sidekiq
   module Pool
     class CLI < Sidekiq::CLI
+
+      START_CTX = {
+        :argv => ARGV.map(&:dup),
+        0 => $0.dup,
+      }
+
       def initialize
         @child_index = 0
         @pool = []
         @done = false
+        @system_booted = false
         super
       end
 
@@ -41,6 +48,15 @@ module Sidekiq
 
       DEFAULT_FORK_WAIT = 1
 
+      def boot_system
+        if @system_booted
+          logger.info "#{::Process.pid} - environment already started"
+        else
+          super
+          @system_booted = true
+        end
+      end
+
       def working_directory
         @working_directory || @settings[:working_directory]
       end
@@ -49,6 +65,9 @@ module Sidekiq
         logger.info 'Starting new pool'
         @settings = parse_config_file(@pool_config)
         Dir.chdir(working_directory) if working_directory
+
+        boot_system
+
         @types = @settings[:workers]
         @types.each do |type|
           type[:amount].times do
@@ -56,6 +75,7 @@ module Sidekiq
             fork_child(type[:command])
           end
         end
+        drop_reload_marker
       end
 
       def parse_options(argv)
@@ -228,23 +248,41 @@ module Sidekiq
           logger.info "Sending #{sig} signal to the pool"
           signal_to_pool(sig)
         when 'HUP'
-          logger.info 'Gracefully reloading pool'
-          old_pool = @pool.dup
-
-          # Signal old pool
-          # USR1 tells Sidekiq it will be shutting down in near future.
-          signal_to_pool('USR1') if @suspend_before_graceful_reload
-
-          # Reset pool
-          @pool = []
-
-          # Start new pool
-          start_new_pool
-
-          # Stop old pool
-          stop_children(old_pool)
-          logger.info 'Graceful reload completed'
+          reload
         end
+      end
+
+      def reload
+        logger.info 'Gracefully reloading pool'
+
+        # USR1 tells Sidekiq it will be shutting down in near future.
+        signal_to_pool('USR1') if @suspend_before_graceful_reload
+
+        add_reload_marker
+        reexec
+
+        stop_children
+        logger.info 'Graceful reload completed'
+      ensure
+        exit(0)
+      end
+
+      def reexec
+        fork do
+          cmd = [START_CTX[0]].concat(START_CTX[:argv])
+          logger.info("Starting new master process #{cmd}")
+          exec(*cmd)
+        end
+      end
+
+      def add_reload_marker
+        return unless options[:pidfile]
+        File.write([options[:pidfile], '.reload'].join, '')
+      end
+
+      def drop_reload_marker
+        reload_marker = [options[:pidfile], '.reload'].join
+        File.unlink(reload_marker) if File.exist?(reload_marker)
       end
 
       def signal_to_pool(sig, given_pool = @pool)
