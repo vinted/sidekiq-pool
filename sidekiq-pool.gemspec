@@ -6,8 +6,8 @@ require 'sidekiq/pool/version'
 Gem::Specification.new do |spec|
   spec.name          = 'sidekiq-pool'
   spec.version       = Sidekiq::Pool::VERSION
-  spec.authors       = ['Laurynas Butkus']
-  spec.email         = ['laurynas.butkus@gmail.com']
+  spec.authors       = ['Laurynas Butkus', 'Raimondas Valickas']
+  spec.email         = ['laurynas.butkus@gmail.com', 'raimondas.valickas@gmail.com']
 
   spec.summary       = %q{Forks and manages multiple Sidekiq processes}
   spec.description   = %q{Allows Sidekiq using more CPU cores on Ruby MRI by forking multiple processes.}
