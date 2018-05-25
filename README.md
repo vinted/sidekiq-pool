@@ -48,6 +48,16 @@ Signal `HUP` to parent starts new children and then stops old.
 When using symlinked working directory `working_directory` configuration
 option must be used to pick up new code.
 
+## After fork
+
+You may want to execute code after process has been forked. It can be done by registering after_fork hook like this
+```ruby
+require 'sidekiq/pool'
+Sidekiq::Pool.after_fork do
+  # run code here
+end
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/laurynas/sidekiq-pool.
