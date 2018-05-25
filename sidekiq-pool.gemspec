@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = %q{Forks and manages multiple Sidekiq processes}
   spec.description   = %q{Allows Sidekiq using more CPU cores on Ruby MRI by forking multiple processes.}
-  spec.homepage      = 'https://github.com/laurynas/sidekiq-pool'
+  spec.homepage      = 'https://github.com/vinted/sidekiq-pool'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }

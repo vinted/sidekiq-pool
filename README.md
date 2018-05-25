@@ -1,7 +1,7 @@
 # Sidekiq::Pool
 
 [![Gem](https://img.shields.io/gem/v/sidekiq-pool.svg)](https://rubygems.org/gems/sidekiq-pool)
-[![Build Status](https://travis-ci.org/laurynas/sidekiq-pool.svg?branch=master)](https://travis-ci.org/laurynas/sidekiq-pool)
+[![Build Status](https://travis-ci.org/vinted/sidekiq-pool.svg?branch=master)](https://travis-ci.org/vinted/sidekiq-pool)
 
 Allows Sidekiq using more CPU cores on Ruby MRI by forking multiple processes.
 Also adds an option to use different command line option workers in the same pool.
@@ -60,7 +60,7 @@ end
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/laurynas/sidekiq-pool.
+Bug reports and pull requests are welcome on GitHub at https://github.com/vinted/sidekiq-pool.
 
 ## License
 
