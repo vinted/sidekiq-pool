@@ -211,6 +211,7 @@ module Sidekiq
           @@identity = nil
           options[:identity] = identity
 
+          run_after_fork_hooks
           run_child
         end
 
@@ -273,6 +274,10 @@ module Sidekiq
           logger.info("Starting new master process #{cmd}")
           exec(*cmd)
         end
+      end
+
+      def run_after_fork_hooks
+        Sidekiq::Pool.after_fork_hooks.each(&:call)
       end
 
       def add_reload_marker
