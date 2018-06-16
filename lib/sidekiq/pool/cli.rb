@@ -1,5 +1,5 @@
 require 'sidekiq/cli'
-require 'sidekiq/pool/version'
+require 'sidekiq/pool'
 
 module Sidekiq
   module Pool
