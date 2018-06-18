@@ -241,7 +241,7 @@ module Sidekiq
           exit(0)
         when 'CHLD'
           check_pool
-        when 'USR1'
+        when 'USR1', 'TSTP'
           @done = true
           update_process_name
           signal_to_pool(sig)

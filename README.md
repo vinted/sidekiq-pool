@@ -41,7 +41,7 @@ Start pool with a non-default path config
 
 ## Signals
 
-Signals `USR1`, `USR2` are forwarded to the children.
+Signals `USR1`, `USR2`, and `TSTP` are forwarded to the children. Depending on the version of Sidekiq, you may need to send `USR1` or `TSTP` to prepare it for shutdown. For more information, please read [signals and sidekiq](https://github.com/mperham/sidekiq/wiki/Signals) documentation.
 
 Signal `HUP` to parent starts new children and then stops old.
 
