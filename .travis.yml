@@ -1,4 +1,5 @@
 language: ruby
+cache: bundler
 rvm:
   - ruby-head
   - 2.5.1
@@ -6,9 +7,21 @@ rvm:
   - 2.3.4
   - 2.2.7
 before_install: gem install bundler -v 1.11.2
+before_script:
+  - gem install bundler -v 1.11.2
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+script:
+  - bundle exec rspec
+after_script:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
 after_success:
 - >
   [ "${TRAVIS_PULL_REQUEST}" != "false" ] &&
   [ "${TRAVIS_RUBY_VERSION}" = "2.5.1" ] &&
     PRONTO_PULL_REQUEST_ID=${TRAVIS_PULL_REQUEST} \
       bundle exec pronto run -f github_status github_pr -c origin/${TRAVIS_BRANCH}
+env:
+  global:
+    secure: JExKDpE3tE8z7o3soZeXRiB8CRyz9EjMplG/fJTNf2CDePEeiPxiXIo4yXH0aCqkBh4dLTXdGpMd0ezRHdeCwcxQslBwRpyMJlPCdwpw95lqSX4Jqafol+qQ1MJwhri12U8+msYdLkUQ6mhcRAdM3kmASu4VZ0uBrjcNwbwirsMpOUHO8qrjlYj3p9HkLD3Z2Qp6CkVbyL4XqJsRcvy+s6ozK3MY6LoYzK5LLevmNMDTI+6Qg3GQgpNNb2Aihih7JQwUNyw4h55jEz2uorTk1od1spuyfX8q4UfOxfxqnYVYubgtzAifAmNdichdljHYW30+4MdnX6PCUiY2/ynyLdpmiAKntlp8B9Qh/Qs+g/BYIG1qIWNMvu7YmxWoJI8iHEWe+fC6JpLxo6PLPGCg/1yQ3Af4ZIZNMR5i37hSmp/2LAo+UF2y9nW6lN9x3ToYlGCSrWNuAt1DpXXgPLskIuiLPTwQQ6xVbnraInOInBbumYZwJwsRoFvg4Lh3GVHrOR123pHBcjPD4SQBuNEKAeHizdgbE/1LiNYpj/ecGGN+C9wW2vORohi4LJmEjUpnkLtNeJOSe9NG4OpgtmwkOy6E/8NCjlq0BrcHreVg4LsXmWFh1UFAIB2captJuBsok72QspGSVcjUctFUzC624svperwxOj4TgAjZ/8SOyFs=
