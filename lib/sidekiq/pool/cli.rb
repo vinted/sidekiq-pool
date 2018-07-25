@@ -178,7 +178,7 @@ module Sidekiq
       def trap_signals
         @self_read, @self_write = IO.pipe
 
-        %w(INT TERM USR1 USR2 CHLD HUP).each do |sig|
+        %w(INT TERM USR1 TSTP USR2 CHLD HUP).each do |sig|
           begin
             trap sig do
               @self_write.puts(sig) unless fork?
