@@ -1,5 +1,5 @@
 module Sidekiq
   module Pool
-    VERSION = '1.7.3'
+    VERSION = '1.8.0'
   end
 end
