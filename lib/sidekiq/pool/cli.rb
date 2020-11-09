@@ -72,7 +72,7 @@ module Sidekiq
         @types.each do |type|
           type[:amount].times do
             sleep @fork_wait || DEFAULT_FORK_WAIT
-            fork_child(type[:command])
+            fork_child(type[:command], false, type[:env])
           end
         end
         drop_reload_marker
@@ -189,7 +189,7 @@ module Sidekiq
         end
       end
 
-      def fork_child(command, wait_for_busy = true)
+      def fork_child(command, wait_for_busy = true, env = {})
         logger.info "Adding child with args: (#{command}) in #{working_directory}, waiting for busy: #{wait_for_busy}"
         if working_directory && !Dir.exist?(working_directory)
           logger.info "Working directory: #{working_directory} does not exist unable to fork"
@@ -197,6 +197,10 @@ module Sidekiq
         end
 
         pid = fork do
+          env.each do |k, v|
+            ENV[k] = v
+          end
+
           Dir.chdir(working_directory) if working_directory
           opts = parse_options(command.split)
           options.merge!(opts)

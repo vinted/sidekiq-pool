@@ -23,6 +23,9 @@ Paste the following config and modify it to your needs:
 :workers:
   -
     :command: '-q default -q high'
+    :env:
+      CUSTOM_ENV_VARIABLE: 1
+      REDIS_SHARD: 'A'
     :amount: 2
   -
     :command: '-q high -L high_logfile.txt'
@@ -48,8 +51,10 @@ Signal `HUP` to parent starts new children and then stops old.
 When using symlinked working directory `working_directory` configuration
 option must be used to pick up new code.
 
-## After fork
+## Env
+You are able to specify the list of environment variables, which will be passed to the process.
 
+## After fork
 You may want to execute code after process has been forked. It can be done by registering after_fork hook like this
 ```ruby
 require 'sidekiq/pool'
