@@ -20,8 +20,13 @@ module Sidekiq
 
       alias_method :run_child, :run
 
+      def write_pid
+        super if @master_pid == ::Process.pid
+      end
+
       def run
         @master_pid = $$
+        write_pid
 
         trap_signals
         update_process_name
