@@ -11,7 +11,6 @@ module Sidekiq
       }
 
       def initialize
-        @child_index = 0
         @pool = []
         @done = false
         @system_booted = false
@@ -74,10 +73,12 @@ module Sidekiq
         boot_system
 
         @types = @settings[:workers]
+        index = -1
         @types.each do |type|
           type[:amount].times do
+            index += 1
             sleep @fork_wait || DEFAULT_FORK_WAIT
-            fork_child(type[:command])
+            fork_child(type[:command], index)
           end
         end
         drop_reload_marker
@@ -194,7 +195,7 @@ module Sidekiq
         end
       end
 
-      def fork_child(command, wait_for_busy = true)
+      def fork_child(command, index, wait_for_busy = true)
         logger.info "Adding child with args: (#{command}) in #{working_directory}, waiting for busy: #{wait_for_busy}"
         if working_directory && !Dir.exist?(working_directory)
           logger.info "Working directory: #{working_directory} does not exist unable to fork"
@@ -208,13 +209,13 @@ module Sidekiq
 
           @self_write.close
           $0 = 'sidekiq starting'
-          @child_index += 1
-          options[:index] = @child_index
+          options[:index] = index
 
           # reset child identity
           @@process_nonce = nil
           @@identity = nil
           options[:identity] = identity
+          options[:tag] = "worker #{index}"
 
           run_after_fork_hooks
           run_child
@@ -228,7 +229,7 @@ module Sidekiq
           sleep 1
         end if wait_for_busy
 
-        @pool << { pid: pid, command: command }
+        @pool << { pid: pid, index: index, command: command }
       end
 
       def wait_for_signals
@@ -314,9 +315,9 @@ module Sidekiq
       end
 
       def handle_dead_child(child)
-        logger.info "Child #{child[:pid]} died"
+        logger.info "Child #{child[:pid]} (worker #{child[:index]}) died"
         @pool.delete(child)
-        fork_child(child[:command], false)
+        fork_child(child[:command], child[:index], false)
       end
 
       def alive?(pid)
