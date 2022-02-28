@@ -208,7 +208,7 @@ module Sidekiq
           options.merge!(opts)
 
           @self_write.close
-          $0 = 'sidekiq starting'
+          $0 = "sidekiq #{Sidekiq::VERSION} worker #{index} starting"
           options[:index] = index
 
           # reset child identity
