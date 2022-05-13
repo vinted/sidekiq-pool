@@ -1,4 +1,4 @@
-name: Build and release ruby gem
+name: Test, build, and release Ruby gem
 
 on:
   pull_request: 
@@ -7,23 +7,42 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-release-pipeline:
+  test:
     runs-on: ubuntu-latest
-    container: ruby:2.7.2
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [ '2.7', '3.0', '3.1' ]
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
       - name: Setup
-        run: |
-          apt-get update -y && apt-get install -y --no-install-recommends cmake=3.13.4-1
-          gem install bundler
+        run: | 
           bundle install
-
       - name: Test
         run: bundle exec rake
+      
+  build-release-pipeline:
+    runs-on: ubuntu-latest
+    needs: test
+    if: success() && github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
+          bundler-cache: true
+      - name: Setup
+        run: | 
+          bundle install
 
       - name: Build
         id: build
-        if: success() && github.ref == 'refs/heads/master'
         run: |
           bundle exec rake build
           echo "::set-output name=gem_version::v$(bundle exec rake version)"
@@ -51,4 +70,3 @@ jobs:
               ref: "refs/tags/${{ steps.build.outputs.gem_version }}",
               sha: context.sha
             })
-            
