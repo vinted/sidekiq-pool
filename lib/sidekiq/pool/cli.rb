@@ -19,13 +19,8 @@ module Sidekiq
 
       alias_method :run_child, :run
 
-      def write_pid
-        super if @master_pid == ::Process.pid
-      end
-
       def run
         @master_pid = $$
-        write_pid
 
         trap_signals
         update_process_name
@@ -131,10 +126,6 @@ module Sidekiq
 
           o.on '-L', '--logfile PATH', "path to writable logfile" do |arg|
             opts[:logfile] = arg
-          end
-
-          o.on '-P', '--pidfile PATH', "path to pidfile" do |arg|
-            opts[:pidfile] = arg
           end
 
           o.on '-p', '--pool-config PATH', "path to pool config file" do |arg|
