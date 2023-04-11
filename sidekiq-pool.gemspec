@@ -18,10 +18,10 @@ Gem::Specification.new do |spec|
   spec.executables   = ['sidekiq-pool']
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'sidekiq', '>= 3.0', '< 7.0'
+  spec.add_dependency 'sidekiq', '>= 3.0', '< 8.0'
 
   spec.add_development_dependency 'bundler'
-  spec.add_development_dependency 'pronto-rubocop', '~> 0.10'
+  spec.add_development_dependency 'pronto-rubocop', '~> 0.11.5'
   spec.add_development_dependency 'rake', '~> 13.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
 end
