@@ -76,7 +76,6 @@ module Sidekiq
             fork_child(type[:command], index)
           end
         end
-        drop_reload_marker
       end
 
       def parse_options(argv)
@@ -196,17 +195,17 @@ module Sidekiq
         pid = fork do
           Dir.chdir(working_directory) if working_directory
           opts = parse_options(command.split)
-          options.merge!(opts)
+          @config.merge!(opts)
 
           @self_write.close
           $0 = "sidekiq #{Sidekiq::VERSION} worker #{index} starting"
-          options[:index] = index
+          @config[:index] = index
 
           # reset child identity
           @@process_nonce = nil
           @@identity = nil
-          options[:identity] = identity
-          options[:tag] = "worker #{index}"
+          @config[:identity] = identity
+          @config[:tag] = "worker #{index}"
 
           run_after_fork_hooks
           run_child
@@ -275,16 +274,6 @@ module Sidekiq
 
       def run_after_fork_hooks
         Sidekiq::Pool.after_fork_hooks.each(&:call)
-      end
-
-      def add_reload_marker
-        return unless options[:pidfile]
-        File.write([options[:pidfile], '.reload'].join, '')
-      end
-
-      def drop_reload_marker
-        reload_marker = [options[:pidfile], '.reload'].join
-        File.unlink(reload_marker) if File.exist?(reload_marker)
       end
 
       def signal_to_pool(sig, given_pool = @pool)
@@ -359,7 +348,7 @@ module Sidekiq
         parts = [
           'sidekiq-pool',
           Sidekiq::Pool::VERSION,
-          options[:tag]
+          @config[:tag]
         ]
 
         parts << 'stopping' if stopping?
