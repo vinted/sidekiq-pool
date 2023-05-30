@@ -12,9 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: [ '2.7', '3.0', '3.1' ]
+        ruby: [ '2.7', '3.0', '3.1', '3.2' ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -31,11 +31,11 @@ jobs:
     needs: test
     if: success() && github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '2.7'
+          ruby-version: '3.0'
           bundler-cache: true
       - name: Setup
         run: | 
@@ -45,7 +45,7 @@ jobs:
         id: build
         run: |
           bundle exec rake build
-          echo "::set-output name=gem_version::v$(bundle exec rake version)"
+          run: echo "GEM_VERSION=v$(bundle exec rake version)" >> $GITHUB_ENV
 
       - name: Release
         if: success() && github.ref == 'refs/heads/master'
@@ -67,6 +67,6 @@ jobs:
             github.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: "refs/tags/${{ steps.build.outputs.gem_version }}",
+              ref: "refs/tags/${{ env.GEM_VERSION }}",
               sha: context.sha
             })
