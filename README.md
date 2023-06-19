@@ -1,3 +1,5 @@
+# ⚠️ Not maintained anymore, superseded by [einhorn](https://github.com/contribsys/einhorn)
+
 # Sidekiq::Pool
 
 [![Gem](https://img.shields.io/gem/v/sidekiq-pool.svg)](https://rubygems.org/gems/sidekiq-pool)
