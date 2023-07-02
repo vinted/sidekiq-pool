@@ -52,7 +52,7 @@ module Sidekiq
 
       DEFAULT_FORK_WAIT = 1
 
-      def boot_system
+      def boot_application
         if @system_booted
           logger.info "#{::Process.pid} - environment already started"
         else
@@ -70,7 +70,7 @@ module Sidekiq
         @settings = parse_config_file(@pool_config)
         Dir.chdir(working_directory) if working_directory
 
-        boot_system
+        boot_application
 
         @types = @settings[:workers]
         index = -1
